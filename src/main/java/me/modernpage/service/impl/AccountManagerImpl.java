@@ -183,4 +183,10 @@ public class AccountManagerImpl implements AccountManager {
 		}
 		return Optional.empty();
 	}
+
+	@Transactional
+	@Override
+	public boolean checkUsername(String username) {
+		return accountRepository.existsByUsername(username);
+	}
 }

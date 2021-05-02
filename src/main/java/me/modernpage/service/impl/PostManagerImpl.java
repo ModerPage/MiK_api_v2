@@ -50,10 +50,9 @@ public class PostManagerImpl implements PostManager {
 	@Transactional
 	@Override
 	public Post savePost(long userId, Post post, MultipartFile file) throws IOException {
-		String name = String.valueOf(System.currentTimeMillis());
-		String fileLocation = fileSystemRepository
-				.savePostFile(file.getBytes(), String.valueOf(userId), name);
-
+		String newFileName = String.valueOf(System.currentTimeMillis());
+		String newFileLocation = fileSystemRepository
+				.savePostFile(file.getBytes(), String.valueOf(userId), newFileName);
 		Location location = post.getLocation();
 		if(location != null) {
 			Location existingLocation = locationRepository.
@@ -65,14 +64,24 @@ public class PostManagerImpl implements PostManager {
 			post.setLocation(location);
 		}
 
-		File newFile = new File();
-		newFile.setLocation(fileLocation);
-		newFile.setName(name);
-		newFile.setType(tika.detect(fileLocation).split("/")[0]);
-		newFile = fileRepository.save(newFile);
+		if(post.getFile() != null) { // deleting old post file when update new one
+			Optional<File> fileOptional = fileRepository.findById(post.getFile().getId());
+			if(fileOptional.isPresent()) {
+				File postFile = fileOptional.get();
+				fileSystemRepository.remove(postFile.getLocation());
+				postFile.setName(newFileName);
+				postFile.setLocation(newFileLocation);
+				postFile.setType(tika.detect(newFileLocation).split("/")[0]);
+				post.setFile(postFile);
+			}
+		} else { // creating new post file
+			File newFile = new File();
+			newFile.setLocation(newFileLocation);
+			newFile.setName(newFileName);
+			newFile.setType(tika.detect(newFileLocation).split("/")[0]);
+			post.setFile(fileRepository.save(newFile));
+		}
 
-		post.setFile(newFile);
-		userRepository.findById(userId).ifPresent(post::setOwner);
 		return postRepository.save(post);
 	}
 

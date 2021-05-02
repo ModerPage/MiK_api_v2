@@ -20,4 +20,6 @@ public interface AccountManager {
 
 	Optional<Profile> updateAccount(long profileId, AccountInfo accountInfo, String token);
 	Optional<Profile> updateAccount(long profileId, AccountInfo accountInfo, MultipartFile file, String token) throws IOException;
+
+    boolean checkUsername(String username);
 }

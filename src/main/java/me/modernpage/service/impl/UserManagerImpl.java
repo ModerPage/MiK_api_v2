@@ -64,7 +64,7 @@ public class UserManagerImpl implements UserManager {
 
 
 	@Override
-	public Page<Profile> getFollowers(long userId, Pageable page, Long followerId) {
+	public FollowPage<Profile> getFollowers(long userId, Pageable page, Long followerId) {
 		Page<Profile> allFollowers = userRepository.findAllFollowers(userId, page);
 		boolean isFollowed = false;
 		boolean isRequested = false;
@@ -73,7 +73,7 @@ public class UserManagerImpl implements UserManager {
 		} else {
 			isRequested = userRepository.existsRequest(userId, followerId);
 		}
-		return new FollowPage(allFollowers.getContent(), page, allFollowers.getTotalElements(), isFollowed, isRequested);
+		return new FollowPage<>(allFollowers.getContent(), page, allFollowers.getTotalElements(), isFollowed, isRequested);
 	}
 
 	@Override

@@ -29,9 +29,22 @@ public class AccountResource {
 				ResponseUtils.response(500, "Registering account failed", false);
 	}
 
+	@GetMapping("/register/validate/username")
+	public ResponseUtils validateUsername(@RequestParam(value = "username") String username) {
+		boolean isValid = !accountManager.checkUsername(username);
+		return isValid ? ResponseUtils.response(200, "Username can be used", true) :
+				ResponseUtils.response(500, "Username is already used", false);
+	}
+
+	@GetMapping("/register/validate/email")
+	public ResponseUtils validateEmail(@RequestParam(value = "email") String email) {
+		boolean isValid = !accountManager.existsByEmail(email);
+		return isValid ? ResponseUtils.response(200, "Email can be used", true) :
+				ResponseUtils.response(500, "Email is already used", false);
+	}
+
 	@GetMapping("/forgetpassword/email")
 	public ResponseUtils emailCheck(@RequestParam String email) {
-		log.info("emailCheck: " + email);
 		boolean isFound = accountManager.existsByEmail(email);
 		return isFound ? ResponseUtils.response(200, "Email verification success", true):
 				ResponseUtils.response(500, "Email verification failed", false);
