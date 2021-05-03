@@ -30,6 +30,9 @@ public class UserAuthenticationProvider implements AuthenticationProvider {
         if (!new BCryptPasswordEncoder().matches(password, sysUserDetails.getPassword())) {
             throw new BadCredentialsException("Username or password does not match");
         }
+        if(!sysUserDetails.isActive()) {
+            throw new BadCredentialsException("Account is not verified by email yet");
+        }
         return new UsernamePasswordAuthenticationToken(sysUserDetails, password, sysUserDetails.getAuthorities());
     }
 

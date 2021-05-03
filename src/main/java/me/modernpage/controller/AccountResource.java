@@ -12,8 +12,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.mail.MessagingException;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.Optional;
 
 @RestController
@@ -21,10 +24,18 @@ import java.util.Optional;
 public class AccountResource {
 	@Autowired
 	private AccountManager accountManager;
+
+	@GetMapping("/register/verify")
+    public ResponseUtils verifyAccount(@RequestParam("code") String code) {
+	    boolean isVerified = accountManager.verify(code);
+	    return isVerified ? ResponseUtils.response(200, "Your account is verified successfully", true) :
+                ResponseUtils.response(500, "Your account failed being verified", false);
+    }
 	
 	@PostMapping("/register")
-	public ResponseUtils saveAccount(@RequestBody RegisterRequest registerRequest) {
-		boolean isSaved = accountManager.saveAccountAsUser(registerRequest);
+	public ResponseUtils saveAccount(@RequestBody RegisterRequest registerRequest, HttpServletRequest request)
+            throws UnsupportedEncodingException, MessagingException {
+		boolean isSaved = accountManager.saveAccountAsUser(registerRequest, getUrl(request));
 		return isSaved ? ResponseUtils.response(200, "Account registered successfully", true) :
 				ResponseUtils.response(500, "Registering account failed", false);
 	}
@@ -97,4 +108,8 @@ public class AccountResource {
 				.orElseGet(() -> ResponseUtils.response(500, String.format("Profile with %d id did not updated", profileId), null));
 	}
 
+    private String getUrl(HttpServletRequest request) {
+        String siteURL = request.getRequestURL().toString();
+        return siteURL.replace(request.getServletPath(), "");
+    }
 }

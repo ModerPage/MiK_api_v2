@@ -4,6 +4,7 @@ import com.google.common.collect.Sets;
 import lombok.Data;
 import me.modernpage.controller.UserResource;
 import me.modernpage.entity.Account;
+import me.modernpage.entity.ConfirmationToken;
 import me.modernpage.entity.Image;
 import me.modernpage.entity.Profile;
 import me.modernpage.repository.*;
@@ -12,6 +13,8 @@ import me.modernpage.response.PasswordRequest;
 import me.modernpage.security.entity.RegisterRequest;
 import me.modernpage.security.utils.JWTTokenUtils;
 import me.modernpage.service.AccountManager;
+import me.modernpage.service.EmailSenderService;
+import net.bytebuddy.utility.RandomString;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.hateoas.Link;
@@ -20,7 +23,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.mail.MessagingException;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.Optional;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
@@ -35,6 +40,8 @@ public class AccountManagerImpl implements AccountManager {
 	private RoleRepository roleRepository;
 	private ImageRepository imageRepository;
 	private FileSystemRepository fileSystemRepository;
+	private EmailSenderService emailSenderService;
+	private ConfirmationRepository confirmationRepository;
 	private String default_path;
 
 	@Autowired
@@ -42,12 +49,16 @@ public class AccountManagerImpl implements AccountManager {
 							  UserRepository userRepository,
 							  RoleRepository roleRepository,
 							  ImageRepository imageRepository,
-							  FileSystemRepository fileSystemRepository) {
+							  FileSystemRepository fileSystemRepository,
+							  EmailSenderService emailSenderService,
+							  ConfirmationRepository confirmationRepository) {
 		this.accountRepository = accountRepository;
 		this.userRepository = userRepository;
 		this.roleRepository = roleRepository;
 		this.imageRepository = imageRepository;
 		this.fileSystemRepository = fileSystemRepository;
+		this.emailSenderService = emailSenderService;
+		this.confirmationRepository = confirmationRepository;
 	}
 
 	@Transactional
@@ -81,13 +92,14 @@ public class AccountManagerImpl implements AccountManager {
 
 	@Transactional
 	@Override
-	public boolean saveAccountAsUser(RegisterRequest registerRequest) {
+	public boolean saveAccountAsUser(RegisterRequest registerRequest, String url)
+			throws UnsupportedEncodingException, MessagingException {
 		Account account = new Account();
 		account.setUsername(registerRequest.getUsername());
 		account.setEmail(registerRequest.getEmail());
 		account.setPassword(new BCryptPasswordEncoder(10)
 				.encode(registerRequest.getPassword()));
-		account.setActive(true);
+		account.setActive(false);
 		Profile profile = new Profile();
 		profile.setFullname(registerRequest.getFullname());
 
@@ -102,10 +114,18 @@ public class AccountManagerImpl implements AccountManager {
 		// set role and permissions
 		roleRepository.findByRole("ROLE_USER").ifPresent(
 				role ->	account.setRoles(Sets.newHashSet(role)));
+
 		// save account
 		account.setProfile(profile);
 		accountRepository.save(account);
 
+		// generate confirmation token
+		ConfirmationToken confirmationToken =
+				new ConfirmationToken();
+		confirmationToken.setAccount(account);
+		confirmationToken.setConfirmationToken(RandomString.make(64));
+		confirmationRepository.save(confirmationToken);
+		emailSenderService.sendEmail(confirmationToken, url);
 		return true;
 	}
 
@@ -188,5 +208,20 @@ public class AccountManagerImpl implements AccountManager {
 	@Override
 	public boolean checkUsername(String username) {
 		return accountRepository.existsByUsername(username);
+	}
+
+	@Transactional
+	@Override
+	public boolean verify(String code) {
+		ConfirmationToken confirmationToken = confirmationRepository.findByConfirmationToken(code);
+		if(confirmationToken == null || confirmationToken.getAccount().isActive()) {
+			return false;
+		} else {
+			Account account = confirmationToken.getAccount();
+			account.setActive(true);
+			accountRepository.save(account);
+			confirmationRepository.delete(confirmationToken);
+			return true;
+		}
 	}
 }

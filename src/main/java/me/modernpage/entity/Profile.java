@@ -38,7 +38,7 @@ public class Profile extends RepresentationModel<Profile> implements Serializabl
 	@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
 	private Date birthdate;
 	
-	@OneToOne
+	@OneToOne(cascade = CascadeType.REMOVE)
 	@JoinColumn(name = "image_id", nullable = false)
 	private Image image;
 
@@ -51,7 +51,7 @@ public class Profile extends RepresentationModel<Profile> implements Serializabl
 	@NotFound(action = NotFoundAction.IGNORE)
 	private Collection<Post> posts = new ArrayList<>();
 
-	@OneToMany(mappedBy = "owner")
+	@OneToMany(mappedBy = "owner", cascade = CascadeType.REMOVE)
 	@NotFound(action = NotFoundAction.IGNORE)
 	private Collection<PrivateGroup> createdGroups = new ArrayList<PrivateGroup>();
 

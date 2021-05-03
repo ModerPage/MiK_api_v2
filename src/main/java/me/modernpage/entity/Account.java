@@ -31,7 +31,7 @@ public class Account extends RepresentationModel<Account> implements Serializabl
 	private String password;
 	private boolean active;
 	
-	@OneToOne
+	@OneToOne(cascade = CascadeType.REMOVE)
 	@JoinColumn(name = "profile_id", nullable = false)
 	private Profile profile; 
 	
